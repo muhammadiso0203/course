@@ -1,12 +1,15 @@
-import User from '../models/user.model.js';
-import { catchError } from '../utils/error-response.js';
-import { encode, decode } from '../utils/bcrypt-encrypt.js';
-import { generateAccessToken, generateRefreshToken } from '../utils/generate-token.js';
-import jwt from 'jsonwebtoken';
-import { transporter } from '../utils/mailer.js';
-import { otpGenerator } from '../utils/otp-generator.js';
-import { getCache, setCache } from '../utils/cache.js';
-import { userValidator } from '../validators/user.valitadator.js';
+import User from "../models/user.model.js";
+import { catchError } from "../utils/error-response.js";
+import { encode, decode } from "../utils/bcrypt-encrypt.js";
+import {
+  generateAccessToken,
+  generateRefreshToken,
+} from "../utils/generate-token.js";
+import jwt from "jsonwebtoken";
+import { transporter } from "../utils/mailer.js";
+import { otpGenerator } from "../utils/otp-generator.js";
+import { getCache, setCache } from "../utils/cache.js";
+import { userValidator } from "../validators/user.valitadator.js";
 
 export class userController {
   async createSuperAdmin(req, res) {
@@ -16,7 +19,7 @@ export class userController {
         catchError(res, 400, error);
       }
       const { name, email, password } = value;
-      const checkSuperAdmin = await User.findOne({ role: 'superadmin' });
+      const checkSuperAdmin = await User.findOne({ role: "superadmin" });
       if (checkSuperAdmin) {
         catchError(res, 409, "Super admin already exists");
       }
@@ -67,6 +70,49 @@ export class userController {
     }
   }
 
+  async signinUser(req, res) {
+    try {
+      const { email, password } = req.body;
+
+      const user = await User.findOne({ email });
+      if (!user) {
+        return catchError(res, 404, "User not found");
+      }
+      
+      const isMatchPassword = await encode(password, user.password);
+      
+      if (!isMatchPassword) {
+        return catchError(res, 400, "Invalid password");
+      }
+
+      const otp = otpGenerator();
+      const mailMessage = {
+        from: process.env.SMTP_USER,
+        to: "muhammadiso0203@gmail.com",
+        subject: "e-navbat",
+        text: `Sizning OTP kodingiz: ${otp}`,
+      };
+
+      transporter.sendMail(mailMessage, function (err, info) {
+        if (err) {
+          console.log(`Email yuborishda xatolik: ${err}`);
+          return catchError(res, 400, "Email yuborilmadi");
+        }
+
+        console.log("Email yuborildi:", info.response);
+        setCache(user.email, otp);
+
+        return res.status(200).json({
+          statusCode: 200,
+          message: "success",
+          data: {},
+        });
+      });
+    } catch (error) {
+      return catchError(res, 500, error.message);
+    }
+  }
+
   async getAllUser(_, res) {
     try {
       const users = await User.find();
@@ -79,35 +125,35 @@ export class userController {
       catchError(res, 500, error.message);
     }
   }
-  
+
   async getUserById(req, res) {
-      try {
-          const user = await User.findById(req.params.id);
-          return res.status(200).json({
-              statusCode: 200,
-              message: 'success',
-              data: user
-          });
-      } catch (error) {
-          catchError(res, 500, error.message);
-      }
+    try {
+      const user = await User.findById(req.params.id);
+      return res.status(200).json({
+        statusCode: 200,
+        message: "success",
+        data: user,
+      });
+    } catch (error) {
+      catchError(res, 500, error.message);
+    }
   }
 
   async updateUser(req, res) {
     try {
       const id = req.params.id;
       await User.findById(id);
-      
+
       const updateUser = await User.findByIdAndUpdate(id, req.body, {
         new: true,
       });
       return res.status(200).json({
         statusCode: 200,
-        message: 'Success',
-        data: updateUser
+        message: "Success",
+        data: updateUser,
       });
     } catch (error) {
-      catchError(res, 500, error.message)
+      catchError(res, 500, error.message);
     }
   }
 
@@ -115,13 +161,13 @@ export class userController {
     try {
       const id = req.params.id;
       const user = await User.findById(id);
-      if (user.role === 'superadmin') {
-        return catchError(res, 400, 'Super admin cannot be delete');
+      if (user.role === "superadmin") {
+        return catchError(res, 400, "Super admin cannot be delete");
       }
       await User.findByIdAndDelete(id);
       return res.status(200).json({
         statusCode: 200,
-        message: 'Succes',
+        message: "Succes",
         data: {},
       });
     } catch (error) {
