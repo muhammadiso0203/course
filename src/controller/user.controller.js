@@ -92,4 +92,40 @@ export class userController {
           catchError(res, 500, error.message);
       }
   }
+
+  async updateUser(req, res) {
+    try {
+      const id = req.params.id;
+      await User.findById(id);
+      
+      const updateUser = await User.findByIdAndUpdate(id, req.body, {
+        new: true,
+      });
+      return res.status(200).json({
+        statusCode: 200,
+        message: 'Success',
+        data: updateUser
+      });
+    } catch (error) {
+      catchError(res, 500, error.message)
+    }
+  }
+
+  async deleteUser(req, res) {
+    try {
+      const id = req.params.id;
+      const user = await User.findById(id);
+      if (user.role === 'superadmin') {
+        return catchError(res, 400, 'Super admin cannot be delete');
+      }
+      await User.findByIdAndDelete(id);
+      return res.status(200).json({
+        statusCode: 200,
+        message: 'Succes',
+        data: {},
+      });
+    } catch (error) {
+      return catchError(res, 500, error.message);
+    }
+  }
 }
